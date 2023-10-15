@@ -1,1 +1,1 @@
-# cleaner-cli
+# cleancli
