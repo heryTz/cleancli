@@ -6,26 +6,24 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type MyFile struct {
-	Info         fs.FileInfo
-	Checked      bool
-	Children     []MyFile
-	RelativePath string
+type FileModel struct {
+	name  string
+	size  int
+	isDir bool
 }
 
 type model struct {
-	files    []MyFile
+	files    []FileModel
 	cursor   int
 	selected map[int]struct{}
 }
 
 func initialModel() model {
-	files, err := scanDirectory("./cache-test")
+	files, err := scanDir("./cache-test")
 	if err != nil {
 		panic(err)
 	}
@@ -42,27 +40,42 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// select all + len m.files
+		cursorLen := len(m.files)
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "down":
-			if m.cursor == len(m.files)-1 {
+			if m.cursor == cursorLen {
 				m.cursor = 0
 			} else {
 				m.cursor++
 			}
 		case "up":
 			if m.cursor == 0 {
-				m.cursor = len(m.files) - 1
+				m.cursor = cursorLen
 			} else {
 				m.cursor--
 			}
 		case " ":
 			_, ok := m.selected[m.cursor]
-			if ok {
+			if m.cursor == 0 && ok {
+				m.selected = make(map[int]struct{})
+			} else if m.cursor == 0 && !ok {
+				m.selected = map[int]struct{}{
+					0: {},
+				}
+				for i := range m.files {
+					m.selected[i+1] = struct{}{}
+				}
+			} else if ok {
 				delete(m.selected, m.cursor)
+				delete(m.selected, 0)
 			} else {
 				m.selected[m.cursor] = struct{}{}
+				if len(m.selected) == cursorLen {
+					m.selected[0] = struct{}{}
+				}
 			}
 		case "enter":
 			println("Delete cache")
@@ -78,30 +91,31 @@ func (m model) View() string {
 	if len(m.files) == 0 {
 		s += "Empty cache\n"
 	} else {
-		cursor := " "
+		checkAllCursor := " "
 		if m.cursor == 0 {
-			cursor = ">"
+			checkAllCursor = ">"
 		}
 
 		allChecked := " "
-		if len(m.selected) == len(m.files) {
+		if _, ok := m.selected[0]; ok {
 			allChecked = "x"
 		}
 
-		s += fmt.Sprintf("%s [%s] %s", cursor, allChecked, "Select all\n\n")
+		s += fmt.Sprintf("%s [%s] %s", checkAllCursor, allChecked, "Select all\n\n")
 
 		for i, file := range m.files {
 			cursor := " "
-			if i == m.cursor+1 && m.cursor != 0 {
+			fileCursor := i + 1
+			if fileCursor == m.cursor && m.cursor != 0 {
 				cursor = ">"
 			}
 
 			checked := " "
-			if _, ok := m.selected[i]; ok {
+			if _, ok := m.selected[fileCursor]; ok {
 				checked = "x"
 			}
 
-			s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, file.Info.Name())
+			s += fmt.Sprintf("%s [%s] %s (%s)\n", cursor, checked, file.name, humanByte(file.size))
 		}
 	}
 
@@ -118,47 +132,54 @@ func main() {
 	}
 }
 
-func scanDirectory(dir string) ([]MyFile, error) {
+func humanByte(size int) string {
+	return fmt.Sprintf("%d", size)
+}
+
+func getDirSize(dir string) (int, error) {
+	root := dir
+	fileSystem := os.DirFS(root)
+	size := 0
+	err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			panic(err)
+		}
+		info, err := d.Info()
+		if err != nil {
+			panic(err)
+		}
+		if !d.IsDir() {
+			size += int(info.Size())
+		}
+		return nil
+	})
+
+	return size, err
+}
+
+func scanDir(dir string) ([]FileModel, error) {
+	files := []FileModel{}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	files := []MyFile{}
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
 			panic(err)
 		}
-		relativePath := filepath.Join(dir, info.Name())
-		if info.IsDir() {
-			children, err := scanDirectory(relativePath)
+
+		if entry.IsDir() {
+			size, err := getDirSize(filepath.Join(dir, info.Name()))
 			if err != nil {
-				return nil, err
+				panic(err)
 			}
-			files = append(files, MyFile{Info: info, RelativePath: relativePath, Children: children})
+			files = append(files, FileModel{name: info.Name(), size: size, isDir: true})
 		} else {
-			files = append(files, MyFile{Info: info, RelativePath: relativePath})
+			files = append(files, FileModel{name: info.Name(), size: int(info.Size()), isDir: false})
 		}
 	}
 
 	return files, nil
-}
-
-func main2() {
-	myFiles, err := scanDirectory("./cache-test")
-	if err != nil {
-		panic(err)
-	}
-
-	debugFile(myFiles, 0)
-}
-
-func debugFile(files []MyFile, depth int) {
-	for _, file := range files {
-		fmt.Printf("%s%s\n", strings.Repeat("\t", depth), file.RelativePath)
-		if file.Children != nil {
-			debugFile(file.Children, depth+1)
-		}
-	}
 }
