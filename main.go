@@ -6,7 +6,9 @@ import (
 	"log"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -21,6 +23,7 @@ type model struct {
 	files    []FileModel
 	cursor   int
 	selected map[int]struct{}
+	total    int
 }
 
 type unit struct {
@@ -52,6 +55,19 @@ func humanByte(size int) string {
 	return fmt.Sprintf("%.1f %s", val, suffix)
 }
 
+func getCacheDir(dir string) string {
+	if strings.HasPrefix(dir, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			panic(err)
+		}
+		return path.Join(home, dir[2:])
+	}
+	return dir
+}
+
+var CACHE_DIR = getCacheDir("./cache-test")
+
 func getDirSize(dir string) (int, error) {
 	root := dir
 	fileSystem := os.DirFS(root)
@@ -71,6 +87,14 @@ func getDirSize(dir string) (int, error) {
 	})
 
 	return size, err
+}
+
+func getTotalSize(files []FileModel) int {
+	total := 0
+	for _, file := range files {
+		total += file.size
+	}
+	return total
 }
 
 func scanDir(dir string) ([]FileModel, error) {
@@ -101,13 +125,22 @@ func scanDir(dir string) ([]FileModel, error) {
 }
 
 func initialModel() model {
-	files, err := scanDir("./cache-test")
+	files, err := scanDir(CACHE_DIR)
 	if err != nil {
 		panic(err)
 	}
+	total := 0
+	selected := map[int]struct{}{
+		0: {},
+	}
+	for i, file := range files {
+		total += file.size
+		selected[i+1] = struct{}{}
+	}
 	return model{
 		files:    files,
-		selected: make(map[int]struct{}),
+		selected: selected,
+		total:    total,
 	}
 }
 
@@ -155,8 +188,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.selected[0] = struct{}{}
 				}
 			}
+
+			total := 0
+			for i, file := range m.files {
+				if _, ok := m.selected[i+1]; ok {
+					total += file.size
+				}
+			}
+			m.total = total
+
 		case "enter":
-			println("Delete cache")
+			for i, file := range m.files {
+				if _, ok := m.selected[i+1]; ok {
+					if file.isDir {
+						os.RemoveAll(path.Join(CACHE_DIR, file.name))
+					} else {
+						os.Remove(path.Join(CACHE_DIR, file.name))
+					}
+
+				}
+			}
+			files, err := scanDir(CACHE_DIR)
+			if err != nil {
+				panic(err)
+			}
+			m.files = files
+			m.selected = make(map[int]struct{})
+			m.cursor = 0
 		}
 	}
 
@@ -169,6 +227,8 @@ func (m model) View() string {
 	if len(m.files) == 0 {
 		s += "Empty cache\n"
 	} else {
+		s += fmt.Sprintf("Total: %s\n\n", humanByte(m.total))
+
 		checkAllCursor := " "
 		if m.cursor == 0 {
 			checkAllCursor = ">"
