@@ -66,7 +66,7 @@ func getCacheDir(dir string) string {
 	return dir
 }
 
-var CACHE_DIR = getCacheDir("./cache-test")
+var CACHE_DIR = getCacheDir("~/Library/Caches")
 
 func getDirSize(dir string) (int, error) {
 	root := dir
@@ -74,11 +74,11 @@ func getDirSize(dir string) (int, error) {
 	size := 0
 	err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			panic(err)
+			return err
 		}
 		info, err := d.Info()
 		if err != nil {
-			panic(err)
+			return err
 		}
 		if !d.IsDir() {
 			size += int(info.Size())
@@ -113,7 +113,8 @@ func scanDir(dir string) ([]FileModel, error) {
 		if entry.IsDir() {
 			size, err := getDirSize(filepath.Join(dir, info.Name()))
 			if err != nil {
-				panic(err)
+				// some file is not readable
+				// log.Print(err)
 			}
 			files = append(files, FileModel{name: info.Name(), size: size, isDir: true})
 		} else {
@@ -129,18 +130,10 @@ func initialModel() model {
 	if err != nil {
 		panic(err)
 	}
-	total := 0
-	selected := map[int]struct{}{
-		0: {},
-	}
-	for i, file := range files {
-		total += file.size
-		selected[i+1] = struct{}{}
-	}
 	return model{
 		files:    files,
-		selected: selected,
-		total:    total,
+		selected: map[int]struct{}{},
+		total:    0,
 	}
 }
 
