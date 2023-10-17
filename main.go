@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -20,6 +21,83 @@ type model struct {
 	files    []FileModel
 	cursor   int
 	selected map[int]struct{}
+}
+
+type unit struct {
+	suffix string
+	base   float64
+}
+
+var units = []unit{
+	{suffix: "EB", base: math.Pow10(18)},
+	{suffix: "PB", base: math.Pow10(15)},
+	{suffix: "TB", base: math.Pow10(12)},
+	{suffix: "GB", base: math.Pow10(9)},
+	{suffix: "MB", base: math.Pow10(6)},
+	{suffix: "KB", base: math.Pow10(3)},
+	{suffix: "B", base: math.Pow10(0)},
+}
+
+func humanByte(size int) string {
+	val := float64(size)
+	suffix := "B"
+	for _, unit := range units {
+		res := float64(size) / unit.base
+		if res >= 1 {
+			val = res
+			suffix = unit.suffix
+			break
+		}
+	}
+	return fmt.Sprintf("%.1f %s", val, suffix)
+}
+
+func getDirSize(dir string) (int, error) {
+	root := dir
+	fileSystem := os.DirFS(root)
+	size := 0
+	err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			panic(err)
+		}
+		info, err := d.Info()
+		if err != nil {
+			panic(err)
+		}
+		if !d.IsDir() {
+			size += int(info.Size())
+		}
+		return nil
+	})
+
+	return size, err
+}
+
+func scanDir(dir string) ([]FileModel, error) {
+	files := []FileModel{}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			panic(err)
+		}
+
+		if entry.IsDir() {
+			size, err := getDirSize(filepath.Join(dir, info.Name()))
+			if err != nil {
+				panic(err)
+			}
+			files = append(files, FileModel{name: info.Name(), size: size, isDir: true})
+		} else {
+			files = append(files, FileModel{name: info.Name(), size: int(info.Size()), isDir: false})
+		}
+	}
+
+	return files, nil
 }
 
 func initialModel() model {
@@ -120,6 +198,7 @@ func (m model) View() string {
 	}
 
 	s += "\n- Press Enter to delete cache."
+	s += "\n- Press Space to select item."
 	s += "\n- Press q to quit."
 	return s
 }
@@ -130,56 +209,4 @@ func main() {
 		log.Fatalf("Alas, there's been an error: %v", err)
 		os.Exit(1)
 	}
-}
-
-func humanByte(size int) string {
-	return fmt.Sprintf("%d", size)
-}
-
-func getDirSize(dir string) (int, error) {
-	root := dir
-	fileSystem := os.DirFS(root)
-	size := 0
-	err := fs.WalkDir(fileSystem, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			panic(err)
-		}
-		info, err := d.Info()
-		if err != nil {
-			panic(err)
-		}
-		if !d.IsDir() {
-			size += int(info.Size())
-		}
-		return nil
-	})
-
-	return size, err
-}
-
-func scanDir(dir string) ([]FileModel, error) {
-	files := []FileModel{}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, entry := range entries {
-		info, err := entry.Info()
-		if err != nil {
-			panic(err)
-		}
-
-		if entry.IsDir() {
-			size, err := getDirSize(filepath.Join(dir, info.Name()))
-			if err != nil {
-				panic(err)
-			}
-			files = append(files, FileModel{name: info.Name(), size: size, isDir: true})
-		} else {
-			files = append(files, FileModel{name: info.Name(), size: int(info.Size()), isDir: false})
-		}
-	}
-
-	return files, nil
 }
