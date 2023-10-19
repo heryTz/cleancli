@@ -24,12 +24,16 @@ type model struct {
 	cursor   int
 	selected map[int]struct{}
 	total    int
+	loading  bool
 }
 
 type unit struct {
 	suffix string
 	base   float64
 }
+
+type endLoading int
+type rescanDir int
 
 var units = []unit{
 	{suffix: "EB", base: math.Pow10(18)},
@@ -40,6 +44,8 @@ var units = []unit{
 	{suffix: "KB", base: math.Pow10(3)},
 	{suffix: "B", base: math.Pow10(0)},
 }
+
+var p *tea.Program
 
 func humanByte(size int) string {
 	val := float64(size)
@@ -162,6 +168,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor--
 			}
 		case " ":
+			if m.loading {
+				return m, nil
+			}
 			_, ok := m.selected[m.cursor]
 			if m.cursor == 0 && ok {
 				m.selected = make(map[int]struct{})
@@ -191,24 +200,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.total = total
 
 		case "enter":
-			for i, file := range m.files {
-				if _, ok := m.selected[i+1]; ok {
-					if file.isDir {
-						os.RemoveAll(path.Join(CACHE_DIR, file.name))
-					} else {
-						os.Remove(path.Join(CACHE_DIR, file.name))
-					}
+			if m.loading {
+				return m, nil
+			}
+			m.loading = true
+			go func() {
+				for i, file := range m.files {
+					if _, ok := m.selected[i+1]; ok {
+						if file.isDir {
+							os.RemoveAll(path.Join(CACHE_DIR, file.name))
+						} else {
+							os.Remove(path.Join(CACHE_DIR, file.name))
+						}
 
+					}
 				}
-			}
-			files, err := scanDir(CACHE_DIR)
-			if err != nil {
-				panic(err)
-			}
-			m.files = files
-			m.selected = make(map[int]struct{})
-			m.cursor = 0
+				p.Send(rescanDir(0))
+				p.Send(endLoading(0))
+			}()
 		}
+	case rescanDir:
+		files, err := scanDir(CACHE_DIR)
+		if err != nil {
+			panic(err)
+		}
+		m.files = files
+		m.selected = make(map[int]struct{})
+		m.cursor = 0
+	case endLoading:
+		m.loading = false
 	}
 
 	return m, nil
@@ -250,6 +270,10 @@ func (m model) View() string {
 		}
 	}
 
+	if m.loading {
+		s += "\nLoading...\n"
+	}
+
 	s += "\n- Press Enter to delete cache."
 	s += "\n- Press Space to select item."
 	s += "\n- Press q to quit."
@@ -257,7 +281,7 @@ func (m model) View() string {
 }
 
 func main() {
-	p := tea.NewProgram(initialModel())
+	p = tea.NewProgram(initialModel())
 	if _, err := p.Run(); err != nil {
 		log.Fatalf("Alas, there's been an error: %v", err)
 		os.Exit(1)
