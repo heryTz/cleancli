@@ -11,23 +11,12 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type FileModel struct {
 	name  string
 	size  int
 	isDir bool
-}
-
-var keyStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("#c9c9c9")).
-	Width(5)
-
-var keyTitleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#3C3C3C"))
-
-func keyHelper(key string, title string) string {
-	return fmt.Sprintf("\n%s %s", keyStyle.Render(key), keyTitleStyle.Render(title))
 }
 
 type model struct {
@@ -285,11 +274,9 @@ func (m model) View() string {
 		s += "\nLoading...\n"
 	}
 
-	s += keyHelper("Enter", "delete cache")
-	s += keyHelper("Space", "select item")
-	s += keyHelper("up", "move up")
-	s += keyHelper("down", "move down")
-	s += keyHelper("q", "quit")
+	s += "\n- Press Enter to delete cache."
+	s += "\n- Press Space to select item."
+	s += "\n- Press q to quit."
 	return s
 }
 
