@@ -6,7 +6,27 @@ Make yourself comfortable to improve it. Please make PR.
 
 ![](https://github.com/heryTz/cleancli/blob/main/demo.gif)
 
-## TODO
+## 🚀 Installation
 
-- [ ] Support **select all**
+From binary
+
+```bash
+wget https://github.com/heryTz/cleancli/blob/main/cleancli
+chmod +x ./cleancli
+./cleancli
+```
+
+From source
+
+```bash
+git clone https://github.com/heryTz/cleancli
+cd cleancli
+go build .
+chmod +x ./cleancli
+./cleancli
+```
+
+## 📝 TODO
+
+- [ ] Support select all
 - [ ] Support linux, windows, custom cache path
