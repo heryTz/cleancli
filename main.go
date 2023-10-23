@@ -132,17 +132,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetItems(items)
 
 	case finishDelete:
-		for i, file := range m.list.Items() {
-			if file != nil {
-				f := file.(fileModel)
-				if f.checked {
-					m.totalSelected -= f.size
-					m.list.RemoveItem(i)
-				}
+		files := []list.Item{}
+		total := 0
+		for _, file := range m.list.Items() {
+			f := file.(fileModel)
+			if !f.checked {
+				files = append(files, f)
+				total += f.size
 			}
+			// wtf! why m.list.RemoveItem() not work properly
 		}
 		m.loading = false
+		m.total = total
+		m.totalSelected = 0
 		m.list.StopSpinner()
+		m.list.SetItems(files)
 
 	case tea.KeyMsg:
 		if m.loading {
