@@ -45,8 +45,6 @@ func getCacheDir(dir string) string {
 	return dir
 }
 
-var CACHE_DIR = getCacheDir("~/Library/Caches")
-
 func getDirSize(dir string) (int, error) {
 	root := dir
 	fileSystem := os.DirFS(root)

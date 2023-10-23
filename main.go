@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -16,6 +17,7 @@ var (
 	titleStyle      = lipgloss.NewStyle()
 	paginationStyle = list.DefaultStyles().PaginationStyle.PaddingLeft(2)
 	helpStyle       = list.DefaultStyles().HelpStyle.PaddingBottom(1)
+	CACHE_DIR       = getCacheDir("~/Library/Caches")
 )
 
 const (
@@ -66,11 +68,13 @@ var keys = keyMap{
 }
 
 type model struct {
-	total         int
-	totalSelected int
-	keys          keyMap
-	list          list.Model
-	loading       bool
+	total          int
+	totalSelected  int
+	keys           keyMap
+	list           list.Model
+	loading        bool
+	scanDirLoading bool
+	scanDirSpinner spinner.Model
 }
 
 type unit struct {
@@ -79,6 +83,7 @@ type unit struct {
 }
 
 type finishDelete int
+type loadedDir []fileModel
 
 type fileModel struct {
 	name    string
@@ -93,8 +98,17 @@ func (i fileModel) FilterValue() string {
 
 var p *tea.Program
 
+func scanDirAsync(dir string) {
+	files, err := scanDir(dir)
+	if err != nil {
+		log.Fatalf("failed to scan directory %s", dir)
+	}
+	p.Send(loadedDir(files))
+}
+
 func (m model) Init() tea.Cmd {
-	return nil
+	go scanDirAsync(CACHE_DIR)
+	return m.scanDirSpinner.Tick
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -103,13 +117,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetWidth(msg.Width)
 		return m, nil
 
+	case loadedDir:
+		files := msg
+		items := []list.Item{}
+		for _, file := range files {
+			items = append(items, fileModel{
+				name:  file.name,
+				size:  file.size,
+				isDir: file.isDir,
+			})
+		}
+		m.scanDirLoading = false
+		m.total = getTotalSize(files)
+		m.list.SetItems(items)
+
 	case finishDelete:
 		for i, file := range m.list.Items() {
 			if file != nil {
 				f := file.(fileModel)
 				if f.checked {
-					m.list.RemoveItem(i)
 					m.totalSelected -= f.size
+					m.list.RemoveItem(i)
 				}
 			}
 		}
@@ -157,12 +185,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	return m, cmd
+	var cmd []tea.Cmd
+	var cmdList tea.Cmd
+	m.list, cmdList = m.list.Update(msg)
+	cmd = append(cmd, cmdList)
+
+	if m.scanDirLoading {
+		var cmdSpin tea.Cmd
+		m.scanDirSpinner, cmdSpin = m.scanDirSpinner.Update(msg)
+		cmd = append(cmd, cmdSpin)
+	}
+
+	return m, tea.Batch(cmd...)
 }
 
 func (m model) View() string {
+	if m.scanDirLoading {
+		return fmt.Sprintf("\n%s Scan cache...", m.scanDirSpinner.View())
+	}
+
 	totalPaddingLeft := ""
 	if m.loading {
 		totalPaddingLeft = "  "
@@ -173,32 +214,20 @@ func (m model) View() string {
 }
 
 func main() {
-	files, err := scanDir(CACHE_DIR)
-	if err != nil {
-		panic(err)
-	}
-
-	items := []list.Item{}
-	for _, file := range files {
-		items = append(items, fileModel{
-			name:  file.name,
-			size:  file.size,
-			isDir: file.isDir,
-		})
-	}
-
-	list := list.New(items, itemDelegate{}, listWidth, listHeight)
+	list := list.New([]list.Item{}, itemDelegate{}, listWidth, listHeight)
 	list.Title = "Select cache that you want to delete?"
 	list.Styles.Title = titleStyle
 	list.Styles.PaginationStyle = paginationStyle
 	list.Styles.HelpStyle = helpStyle
 	list.SetFilteringEnabled(false)
 
+	spinner := spinner.New()
+
 	p = tea.NewProgram(model{
-		total:         getTotalSize(files),
-		totalSelected: 0,
-		keys:          keys,
-		list:          list,
+		keys:           keys,
+		list:           list,
+		scanDirLoading: true,
+		scanDirSpinner: spinner,
 	})
 
 	if _, err := p.Run(); err != nil {
