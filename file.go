@@ -10,6 +10,11 @@ import (
 	"strings"
 )
 
+type unit struct {
+	suffix string
+	base   float64
+}
+
 var units = []unit{
 	{suffix: "EB", base: math.Pow10(18)},
 	{suffix: "PB", base: math.Pow10(15)},

@@ -17,7 +17,6 @@ var (
 	titleStyle      = lipgloss.NewStyle()
 	paginationStyle = list.DefaultStyles().PaginationStyle.PaddingLeft(2)
 	helpStyle       = list.DefaultStyles().HelpStyle.PaddingBottom(1)
-	CACHE_DIR       = getCacheDir("~/Library/Caches")
 )
 
 const (
@@ -75,11 +74,7 @@ type model struct {
 	loading        bool
 	scanDirLoading bool
 	scanDirSpinner spinner.Model
-}
-
-type unit struct {
-	suffix string
-	base   float64
+	cacheDir       string
 }
 
 type finishDelete int
@@ -98,16 +93,15 @@ func (i fileModel) FilterValue() string {
 
 var p *tea.Program
 
-func scanDirAsync(dir string) {
-	files, err := scanDir(dir)
-	if err != nil {
-		log.Fatalf("failed to scan directory %s", dir)
-	}
-	p.Send(loadedDir(files))
-}
-
 func (m model) Init() tea.Cmd {
-	go scanDirAsync(CACHE_DIR)
+	go func() {
+		files, err := scanDir(m.cacheDir)
+		if err != nil {
+			log.Fatalf("failed to scan directory %s", m.cacheDir)
+		}
+		p.Send(loadedDir(files))
+	}()
+
 	return m.scanDirSpinner.Tick
 }
 
@@ -176,9 +170,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					f := file.(fileModel)
 					if f.checked {
 						if f.isDir {
-							os.RemoveAll(path.Join(CACHE_DIR, f.name))
+							os.RemoveAll(path.Join(m.cacheDir, f.name))
 						} else {
-							os.Remove(path.Join(CACHE_DIR, f.name))
+							os.Remove(path.Join(m.cacheDir, f.name))
 						}
 					}
 				}
@@ -232,6 +226,7 @@ func main() {
 		list:           list,
 		scanDirLoading: true,
 		scanDirSpinner: spinner,
+		cacheDir:       getCacheDir("~/Library/Caches"),
 	})
 
 	if _, err := p.Run(); err != nil {

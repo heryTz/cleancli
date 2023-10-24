@@ -1,6 +1,6 @@
 # Clean CLI
 
-It is a simple cache management command line. For the moment, it's only for Mac, but support for other platforms is coming soon.
+It is a simple system cache management command line. For the moment, it's only for Mac, but support for other platforms is coming soon.
  
 Make yourself comfortable to improve it. Please make PR.
 
