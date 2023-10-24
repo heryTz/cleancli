@@ -11,7 +11,7 @@ Make yourself comfortable to improve it. Please make PR.
 From binary
 
 ```bash
-wget https://github.com/heryTz/cleancli/blob/main/cleancli
+wget https://github.com/heryTz/cleancli/releases/latest/download/cleancli
 chmod +x ./cleancli
 ./cleancli
 ```
