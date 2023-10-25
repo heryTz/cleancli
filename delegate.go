@@ -12,7 +12,7 @@ import (
 var (
 	itemStyle         = lipgloss.NewStyle().PaddingLeft(2)
 	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	byteSizeStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("0"))
+	byteSizeStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("25"))
 )
 
 type itemDelegate struct{}
