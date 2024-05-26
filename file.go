@@ -93,11 +93,10 @@ func scanDir(dir string) ([]fileModel, error) {
 		}
 
 		if entry.IsDir() {
-			size, err := getDirSize(filepath.Join(dir, info.Name()))
-			if err != nil {
-				// some file is not readable
-				// log.Print(err)
-			}
+			size, _ := getDirSize(filepath.Join(dir, info.Name()))
+			// if err != nil {
+			// 	log.Printf("could not open this directory: %s", info.Name())
+			// }
 			if size > 0 {
 				files = append(files, fileModel{name: info.Name(), size: size, isDir: true})
 			}
