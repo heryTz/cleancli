@@ -28,5 +28,5 @@ chmod +x ./cleancli
 
 ## 📝 TODO
 
-- [ ] Support select all
+- [x] Support select all
 - [ ] Support linux, windows, custom cache path

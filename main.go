@@ -25,11 +25,12 @@ const (
 )
 
 type keyMap struct {
-	Up      key.Binding
-	Down    key.Binding
-	Confirm key.Binding
-	Select  key.Binding
-	Quit    key.Binding
+	Up        key.Binding
+	Down      key.Binding
+	Confirm   key.Binding
+	Select    key.Binding
+	Quit      key.Binding
+	SelectAll key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
@@ -59,6 +60,10 @@ var keys = keyMap{
 	Select: key.NewBinding(
 		key.WithKeys(" "),
 		key.WithHelp("space", "toggle selection"),
+	),
+	SelectAll: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("a", "toggle selection all"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
@@ -116,13 +121,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		items := []list.Item{}
 		for _, file := range files {
 			items = append(items, fileModel{
-				name:  file.name,
-				size:  file.size,
-				isDir: file.isDir,
+				name:    file.name,
+				size:    file.size,
+				isDir:   file.isDir,
+				checked: true,
 			})
 		}
 		m.scanDirLoading = false
-		m.total = getTotalSize(files)
+		totalSize := getTotalSize(files)
+		m.total = totalSize
+		m.totalSelected = totalSize
 		m.list.SetItems(items)
 
 	case finishDelete:
@@ -148,20 +156,43 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
+		case key.Matches(msg, m.keys.SelectAll):
+			selectedCount := 0
+			items := m.list.Items()
+			for _, file := range items {
+				f := file.(fileModel)
+				if f.checked {
+					selectedCount++
+				}
+			}
+			if selectedCount == len(items) {
+				for i, file := range items {
+					f := file.(fileModel)
+					f.checked = false
+					m.list.SetItem(i, f)
+				}
+				m.totalSelected = 0
+			} else {
+				for i, file := range items {
+					f := file.(fileModel)
+					f.checked = true
+					m.list.SetItem(i, f)
+				}
+				m.totalSelected = getSelectedSize(items)
+			}
+
 		case key.Matches(msg, m.keys.Select):
+			items := m.list.Items()
 			selected, _ := m.list.SelectedItem().(fileModel)
-			for i, file := range m.list.Items() {
+			for i, file := range items {
 				f := file.(fileModel)
 				if selected.name == f.name {
 					f.checked = !f.checked
 					m.list.SetItem(i, f)
-					if f.checked {
-						m.totalSelected += f.size
-					} else {
-						m.totalSelected -= f.size
-					}
 				}
 			}
+			m.totalSelected = getSelectedSize(items)
+
 		case key.Matches(msg, m.keys.Confirm):
 			m.loading = true
 

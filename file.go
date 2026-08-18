@@ -8,6 +8,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/list"
 )
 
 type unit struct {
@@ -75,6 +77,17 @@ func getTotalSize(files []fileModel) int {
 	total := 0
 	for _, file := range files {
 		total += file.size
+	}
+	return total
+}
+
+func getSelectedSize(items []list.Item) int {
+	total := 0
+	for _, file := range items {
+		f := file.(fileModel)
+		if f.checked {
+			total += f.size
+		}
 	}
 	return total
 }
