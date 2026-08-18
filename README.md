@@ -1,17 +1,17 @@
 # Clean CLI
 
-It is a simple system cache management command line. It supports Mac, Linux and Windows.
- 
-Make yourself comfortable to improve it. Please make PR.
+It is a simple cache cleaner command line. It supports Mac, Linux and Windows.
 
 ![](https://github.com/heryTz/cleancli/blob/main/demo.gif)
 
-## 🚀 Installation
+## Installation
 
 From binary
 
+Download the archive matching your OS and architecture from the [latest release](https://github.com/heryTz/cleancli/releases/latest), then:
+
 ```bash
-wget https://github.com/heryTz/cleancli/releases/latest/download/cleancli
+tar -xzf cleancli_<version>_<os>_<arch>.tar.gz
 chmod +x ./cleancli
 ./cleancli
 ```
@@ -26,8 +26,9 @@ chmod +x ./cleancli
 ./cleancli
 ```
 
-## 📝 TODO
+## Features
 
-- [x] Support select all
-- [x] Support linux, windows
-- [ ] Support custom cache path
+- [x] Scan and list cache entries with their size
+- [x] Select one, multiple, or all entries to delete
+- [x] Support Mac, Linux and Windows
+- [ ] Show absolute path of each cache item
