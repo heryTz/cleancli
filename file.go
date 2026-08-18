@@ -5,9 +5,7 @@ import (
 	"io/fs"
 	"math"
 	"os"
-	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 )
@@ -39,17 +37,6 @@ func humanByte(size int) string {
 		}
 	}
 	return fmt.Sprintf("%.1f %s", val, suffix)
-}
-
-func getCacheDir(dir string) string {
-	if strings.HasPrefix(dir, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			panic(err)
-		}
-		return path.Join(home, dir[2:])
-	}
-	return dir
 }
 
 func getDirSize(dir string) (int, error) {

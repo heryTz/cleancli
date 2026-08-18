@@ -1,6 +1,6 @@
 # Clean CLI
 
-It is a simple system cache management command line. For the moment, it's only for Mac, but support for other platforms is coming soon.
+It is a simple system cache management command line. It supports Mac, Linux and Windows.
  
 Make yourself comfortable to improve it. Please make PR.
 
@@ -29,4 +29,5 @@ chmod +x ./cleancli
 ## 📝 TODO
 
 - [x] Support select all
-- [ ] Support linux, windows, custom cache path
+- [x] Support linux, windows
+- [ ] Support custom cache path

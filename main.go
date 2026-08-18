@@ -243,6 +243,11 @@ func (m model) View() string {
 }
 
 func main() {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		log.Fatalf("failed to resolve cache directory: %v", err)
+	}
+
 	list := list.New([]list.Item{}, itemDelegate{}, listWidth, listHeight)
 	list.Title = "Select cache that you want to delete?"
 	list.Styles.Title = titleStyle
@@ -257,7 +262,7 @@ func main() {
 		list:           list,
 		scanDirLoading: true,
 		scanDirSpinner: spinner,
-		cacheDir:       getCacheDir("~/Library/Caches"),
+		cacheDir:       cacheDir,
 	})
 
 	if _, err := p.Run(); err != nil {
