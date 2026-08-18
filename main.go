@@ -254,6 +254,10 @@ func main() {
 	list.Styles.PaginationStyle = paginationStyle
 	list.Styles.HelpStyle = helpStyle
 	list.SetFilteringEnabled(false)
+	list.AdditionalShortHelpKeys = keys.ShortHelp
+	list.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{keys.Confirm, keys.Select, keys.SelectAll}
+	}
 
 	spinner := spinner.New()
 
